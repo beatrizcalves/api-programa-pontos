@@ -1,32 +1,39 @@
 import Cliente from "../entities/Cliente.js";
 import ProgramaDeFidelidade from "../entities/ProgramaDeFidelidade.js";
 
-/**
- * Constrói o link HATEOAS apenas para histórico do cliente.
- * @param {Object} cliente - Objeto do cliente.
- * @returns {Array} Lista de links HATEOAS.
- */
-const gerarLinksCliente = (cliente) => {
-    return [
-        { rel: "historico", href: `/historico/${cliente._id}`, method: "GET" }
-    ];
+
+export const formatClienteResponse = (cliente) => {
+    return {
+        id: cliente._id,
+        nome: cliente.nome,
+        email: cliente.email,
+        pontos: cliente.pontos,
+        categoria: cliente.categoria,
+        programa: cliente.programaId ? {
+            nome: cliente.programaId.nome,
+            nivel: cliente.programaId.nivel,
+            multiplicador: cliente.programaId.multiplicadorDePontos
+        } : "Nenhum programa de fidelidade vinculado",
+        _links: {
+            self: { href: `/clientes/${cliente.id}`, method: "GET" },
+            historico: { href: `/historico/${cliente.id}`, method: "GET" },
+            editar: { href: `/clientes/${cliente.id}`, method: "PUT" },
+            deletar: { href: `/clientes/${cliente.id}`, method: "DELETE" }
+        }
+    };
 };
 
-/**
- * Cria um novo cliente no sistema (SEM HATEOAS no POST).
- * @param {Object} dados - Dados do cliente (nome, email).
- * @returns {Object} Cliente criado.
- */
+
 const criarCliente = async (dados) => {
     const { nome, email } = dados;
 
-    // Verifica se o e-mail já está cadastrado
+   
     const clienteExistente = await Cliente.findOne({ email });
     if (clienteExistente) {
         throw new Error("Este e-mail já está cadastrado. Tente fazer login ou use outro endereço de e-mail.");
     }
 
-    // Busca ou cria o programa de fidelidade padrão (Bronze)
+    
     let programaPadrao = await ProgramaDeFidelidade.findOne({ nivel: "Bronze" });
 
     if (!programaPadrao) {
@@ -39,7 +46,7 @@ const criarCliente = async (dados) => {
         console.log("Programa de fidelidade criado:", programaPadrao);
     }
 
-    // Cria o novo cliente com a categoria Bronze
+    
     const novoCliente = await Cliente.create({
         nome,
         email,
@@ -51,12 +58,7 @@ const criarCliente = async (dados) => {
     return novoCliente;
 };
 
-/**
- * Lista todos os clientes do sistema com paginação e HATEOAS apenas para histórico.
- * @param {Number} page - Número da página.
- * @param {Number} limit - Quantidade de clientes por página.
- * @returns {Object} Clientes paginados com link apenas para histórico.
- */
+
 const listarClientes = async (page = 1, limit = 10) => {
     const skip = (page - 1) * limit;
 
@@ -73,43 +75,57 @@ const listarClientes = async (page = 1, limit = 10) => {
         page,
         limit,
         totalPages: Math.ceil(totalClientes / limit),
-        data: clientes.map(cliente => ({
-            id: cliente._id,
-            nome: cliente.nome,
-            email: cliente.email,
-            pontos: cliente.pontos,
-            categoria: cliente.categoria,
-            programa: cliente.programaId ? {
-                nome: cliente.programaId.nome,
-                nivel: cliente.programaId.nivel,
-                multiplicador: cliente.programaId.multiplicadorDePontos
-            } : "Nenhum programa de fidelidade vinculado",
-            links: gerarLinksCliente(cliente)
-        }))
+        data: clientes.map(cliente => (formatClienteResponse(cliente)))
     };
 };
 
-/**
- * Retorna um cliente específico com todas as informações, sem HATEOAS adicional.
- * @param {String} id - ID do cliente.
- * @returns {Object} Cliente com todas as informações.
- */
 const buscarClientePorId = async (id) => {
     const cliente = await Cliente.findById(id).populate("programaId");
     if (!cliente) throw new Error("Cliente não encontrado.");
 
-    return {
-        id: cliente._id,
-        nome: cliente.nome,
-        email: cliente.email,
-        pontos: cliente.pontos,
-        categoria: cliente.categoria,
-        programa: cliente.programaId ? {
-            nome: cliente.programaId.nome,
-            nivel: cliente.programaId.nivel,
-            multiplicador: cliente.programaId.multiplicadorDePontos
-        } : "Nenhum programa de fidelidade vinculado"
-    };
+    return formatClienteResponse(cliente);
 };
 
-export { criarCliente, listarClientes, buscarClientePorId };
+const editarCliente = async (id, dados) => {
+    const { nome, email, pontos, categoria } = dados;
+
+    const cliente = await Cliente.findById(id);
+    if (!cliente) throw new Error("Cliente não encontrado.");
+
+    if (email && email !== cliente.email) {
+        const emailExistente = await Cliente.findOne({ email });
+        if (emailExistente) {
+            throw new Error("Este e-mail já está cadastrado. Use outro endereço de e-mail.");
+        }
+    }
+
+    cliente.nome = nome ?? cliente.nome;
+    cliente.email = email ?? cliente.email;
+    cliente.pontos = pontos ?? cliente.pontos;
+    cliente.categoria = categoria ?? cliente.categoria;
+
+    cliente.categoria = atualizarCategoriaCliente(cliente);
+
+    await cliente.save();
+
+    return formatClienteResponse(cliente);
+};
+
+const deletarCliente = async (id) => {
+    const cliente = await Cliente.findById(id);
+    if (!cliente) throw new Error("Cliente não encontrado.");
+
+    await Cliente.deleteOne({ _id: id });
+
+    return { message: "Cliente deletado com sucesso." };
+};
+
+const atualizarCategoriaCliente = async (cliente) => {
+    let novaCategoria = "Bronze";
+    if (cliente.pontos >= 2001 && cliente.pontos <= 5000) novaCategoria = "Prata";
+    if (cliente.pontos > 5000) novaCategoria = "Ouro";
+
+    return novaCategoria;
+};
+
+export { criarCliente, listarClientes, buscarClientePorId, editarCliente, deletarCliente, atualizarCategoriaCliente };

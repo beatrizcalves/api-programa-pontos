@@ -1,5 +1,6 @@
 import express from "express";
-import { ganharPontos, resgatarPontos } from "../services/transacao.service.js";
+import { ganharPontos, resgatarPontos, buscarTransacaoPorId } from "../services/transacao.service.js";
+import { validarTransacao } from "../validations/transacao.validation.js";
 
 const router = express.Router();
 
@@ -36,10 +37,10 @@ const router = express.Router();
  *       400:
  *         description: "Erro ao processar a transação."
  */
-router.post("/ganho", async (req, res) => {
+router.post("/ganho", validarTransacao,  async (req, res) => {
     try {
-        const cliente = await ganharPontos(req.body);
-        res.status(201).json(cliente);
+        const transacao = await ganharPontos(req.body);
+        res.status(201).json(transacao);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -71,12 +72,41 @@ router.post("/ganho", async (req, res) => {
  *       400:
  *         description: "Erro ao processar o resgate."
  */
-router.post("/resgate", async (req, res) => {
+router.post("/resgate",validarTransacao, async (req, res) => {
     try {
-        const cliente = await resgatarPontos(req.body);
-        res.status(201).json(cliente);
+        const transacao = await resgatarPontos(req.body);
+        res.status(201).json(transacao);
     } catch (error) {
         res.status(400).json({ error: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /transacoes/{id}:
+ *   get:
+ *     summary: "Obtém uma transação pelo ID"
+ *     tags: ["Transações"]
+ *     description: "Retorna os detalhes de uma transação específica."
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "ID da transação a ser buscada."
+ *     responses:
+ *       200:
+ *         description: "Transação encontrada com sucesso."
+ *       404:
+ *         description: "Transação não encontrada."
+ */
+router.get("/:id", async (req, res) => {
+    try {
+        const transacao = await buscarTransacaoPorId(req.params.id);
+        res.json(transacao);
+    } catch (error) {
+        res.status(404).json({ error: error.message });
     }
 });
 

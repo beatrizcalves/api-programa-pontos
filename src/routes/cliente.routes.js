@@ -1,5 +1,5 @@
 import express from "express";
-import { criarCliente, listarClientes, buscarClientePorId } from "../services/cliente.service.js";
+import { criarCliente, listarClientes, buscarClientePorId, editarCliente, deletarCliente  } from "../services/cliente.service.js";
 import { validarCliente } from "../validations/cliente.validation.js";
 
 const router = express.Router();
@@ -42,10 +42,9 @@ router.get("/", async (req, res) => {
         const clientes = await listarClientes(page, limit);
         res.json(clientes);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Erro ao listar clientes." });
     }
 });
-
 /**
  * @swagger
  * /clientes:
@@ -104,7 +103,87 @@ router.post("/", validarCliente, async (req, res) => {
 router.get("/:id", async (req, res) => {
     try {
         const cliente = await buscarClientePorId(req.params.id);
+        if (!cliente) return res.status(404).json({ error: "Cliente não encontrado" });
         res.json(cliente);
+    } catch (error) {
+        res.status(500).json({ error: "Erro ao buscar cliente." });
+    }
+});
+
+/**
+ * @swagger
+ * /clientes/{id}:
+ *   put:
+ *     summary: "Edita um cliente pelo ID"
+ *     tags: ["Clientes"]
+ *     description: "Atualiza os dados de um cliente específico pelo ID."
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "ID do cliente a ser atualizado."
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nome:
+ *                 type: string
+ *                 example: "Maria Oliveira"
+ *               email:
+ *                 type: string
+ *                 example: "maria@email.com"
+ *               pontos:
+ *                 type: integer
+ *                 example: 1000
+ *               categoria:
+ *                 type: string
+ *                 example: "Prata"
+ *     responses:
+ *       200:
+ *         description: "Cliente atualizado com sucesso."
+ *       400:
+ *         description: "Erro na validação dos dados."
+ *       404:
+ *         description: "Cliente não encontrado."
+ */
+router.put("/:id", validarCliente, async (req, res) => {
+    try {
+        const clienteAtualizado = await editarCliente(req.params.id, req.body);
+        res.json(clienteAtualizado);
+    } catch (error) {
+        res.status(error.message.includes("não encontrado") ? 404 : 400).json({ error: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /clientes/{id}:
+ *   delete:
+ *     summary: "Remove um cliente pelo ID"
+ *     tags: ["Clientes"]
+ *     description: "Exclui um cliente específico pelo ID."
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "ID do cliente a ser removido."
+ *     responses:
+ *       200:
+ *         description: "Cliente removido com sucesso."
+ *       404:
+ *         description: "Cliente não encontrado."
+ */
+router.delete("/:id", async (req, res) => {
+    try {
+        await deletarCliente(req.params.id);
+        res.json({ message: "Cliente removido com sucesso." });
     } catch (error) {
         res.status(404).json({ error: error.message });
     }

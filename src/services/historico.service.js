@@ -1,21 +1,29 @@
 import HistoricoDePontos from "../entities/HistoricoDePontos.js";
 
-/**
- * Registra uma movimentação no histórico de pontos do cliente.
- * @param {String} clienteId - ID do cliente.
- * @param {String} tipo - Tipo da transação (ganho, resgate, expiração).
- * @param {Number} valor - Quantidade de pontos alterada.
- * @param {String} motivo - Motivo opcional da movimentação.
- */
-export const registrarHistorico = async (clienteId, tipo, valor, motivo = "") => {
-    return await HistoricoDePontos.create({ clienteId, tipo, valor, motivo });
+
+const formatHistoricoResponse = (historico) => {
+    return {
+        id: historico._id,
+        clienteId: historico.clienteId,
+        tipo: historico.tipo,
+        valor: historico.valor,
+        motivo: historico.motivo,
+        data: historico.createdAt,
+        _links: {
+            self: { href: `/historico/${historico._id}`, method: "GET" },
+            cliente: { href: `/clientes/${historico.clienteId}`, method: "GET" }
+        }
+    };
 };
 
-/**
- * Lista o histórico de pontos de um cliente.
- * @param {String} clienteId - ID do cliente.
- * @returns {Array} Lista de movimentações.
- */
+
+export const registrarHistorico = async (clienteId, tipo, valor, motivo = "") => {
+    const historico = await HistoricoDePontos.create({ clienteId, tipo, valor, motivo });
+    return formatHistoricoResponse(historico);
+};
+
+
 export const listarHistoricoPorCliente = async (clienteId) => {
-    return await HistoricoDePontos.find({ clienteId }).sort({ data: -1 });
+    const historico = await HistoricoDePontos.find({ clienteId }).sort({ data: -1 });
+    return historico.map(formatHistoricoResponse);
 };
