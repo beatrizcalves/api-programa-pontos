@@ -14,7 +14,7 @@ Esta é a API para um sistema de programa de pontos, que permite gerenciar clien
 
 1. Clone o repositório:
     ```sh
-    git clone [<URL_DO_REPOSITORIO>](https://github.com/beatrizcalves/api-programa-pontos.git)
+    git clone <URL_DO_REPOSITORIO>
     ```
 2. Navegue até o diretório do projeto:
     ```sh
